@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Meu jogo ping pong</title>
+    <style>
+        *{ overflow: hidden;
+            margin: 0;
+            padding: 0;
+
+        }
+    </style>
+</head>
+<body>
+    <canvas></canvas>
+    <script>
+        // primeiro seleciono o canvas
+       const canvasEl = document.querySelector("canvas"),
+        // depois uso um get.context para definir o contexto. obs: O canvas trabalha com 2d e 3d
+         canvasCtx = canvasEl.getContext("2d"),
+         // criei mais uma constante que chamei de gapX pra armazenar um valor que vou utilizar em alguns objetos
+         gapX = 10
+         // constante do objeto mouse
+         const mouse = {x: 0,y: 0}
+         // objeto campo
+        const fild  = {
+            w: window.innerWidth, // o campo pega toda a largura(width) e altura(heigth) da tela
+            h: window.innerHeight,
+            draw : function() { // função de desenhar o campo
+                canvasCtx.fillStyle = "#286047" // definindo a cor (código da cor verde militar)
+                canvasCtx.fillRect (0,0,this.w,this.h) // desenhando, do ponto inicial 0,0 até o ponto determinado w,h
+            }
+        }
+        // objeto linha
+        const line = {
+            w: 15, // largura da linha
+            h:fild.h, // altura da linha e a mesma altura do campo(fild)
+            draw: function(){ // desenho da linha
+               canvasCtx.fillStyle = "#ffffff" // código da cor branca 6 x f
+               canvasCtx.fillRect (fild.w/2 - this.w/2,0,this.w,this.h ) /* primeiro definimos a posição e depois desenhamos (sempre nessa ordem).
+               a posição é a metade do campo (fild.w/2) usamos o (-this.w/2) para deslocar a linha um pouco para ficar bem centralizada. O this e um
+               comando que utilizamos para referenciar a propriedade do próprio objeto. queremos que a linha pegue toda altura da tela, por isso a posição
+               inicial e 0 (que é o topo da tela). this.w e o desenho da linha (sua largura) que definimos como 15. por último this.h(fild.h) porque
+               queremos toda a altura da tela.
+              */
+            }
+        }
+        // objeto raquete esquerda
+        const leftracket = {
+            x: gapX, // posicionamento da raquete em relação a tela(width), definida anteriormente atraves da const gapX
+            y: 0, // altura inicial (higth)
+            w: line.w, // largura da raquete, usei a mesma da linha central (desenho)
+            h: 200,// tamanho da raquete.(desenho)
+            _move:function(){  // função para mover a raquete
+                this.y = mouse.y - this.h / 2 /*
+                a altura da raquete (y) inicia em zero e recebe o movimento do mouse (this.y = mouse.y), o (-this.h/2)
+                e para posicionar o cursor do mouse no centro da raquete.
+                */
+            },
+            draw : function(){
+                canvasCtx.fillStyle = "#ffffff"
+                canvasCtx.fillRect(this.x,this.y,this.w,this.h)
+
+                this._move() // sempre chamamos a função privada / interna no final dentro da função draw(desenho)
+            }
+        }
+
+        const rigthracket = { // função que desenha a raquete direita
+            x: fild.w - line.w - gapX, // a posição e o tamanho da tela - a largura da linha - gapX(10)
+            y: 0, // a posição inicial (altura)
+            w: line.w, // largura da raquete (desenho)
+            h: 200, // altura da raquete (desenho)
+            speed : 5, // velocidade inicial da raquete (maquina)
+            _move: function(){ // função para definicar o comportamento da maquina (movimento)
+                if(this.y + this.h / 2 < ball.y + ball.r){ /* SE a posição da raquete + seu tamanho / 2 (para pegar o centro da raquete)
+                    for menor que a altura da bola (ball.y) + sua circuferencia (ball.r(desenho))
+
+                    */
+
+                    this.y += this.speed //minha posição inicial (this.y) (que é zero), recebe ela mesma + speed(5)
+
+                } else{ //SENAO
+                    this.y -= this.speed //minha posição inicial (this.y) (que é zero), recebe ela mesma - speed(5)
+
+                }
+            },
+            _speedUp: function(){ /*Função para aumentar a velocidade da raquete caso haja ponto, sera utilizada mais abaixo dentro da função
+                pointUP
+
+                   */
+                this.speed += 1
+            },
+            draw : function(){ //desenho da raquete direita
+                canvasCtx.fillStyle = "#ffffff"
+                canvasCtx.fillRect(this.x,this.y,this.w,this.h)
+
+                this._move()
+            }
+
+        }
+
+        const score = { // função que desenha o palcar
+            human: 0,
+            computer: 0,
+            _increasehuman: function(){ // função para incrementar o placar em +1 (humano)
+                this.human++
+            },
+            _increasecomputer: function(){// função para incrementar o placar em +1(computador)
+                this.computer++
+            },
+            draw:function(){ // desenho do placar
+                canvasCtx.font = "bold 72px Arial" //fonte utilizada
+                canvasCtx.textAlign = "center" //alinhamentio do texto
+                canvasCtx.textBaseline = "top" // posicionamento
+                canvasCtx.fillStyle = "#01341D" // cor do texto
+                canvasCtx.fillText(this.human,fild.w/4,50) // posicionamento do placar (humano)
+                canvasCtx.fillText(this.computer,fild.w/4 + fild.w/2,50) // posicionamento do placar (computador)
+
+            }
+        }
+
+        const ball = { // Objeto bola
+            x: fild.w/2, //posicionamento inicial da bola (centro do campo)
+            y:fild.h/2,//posicionamento inicial da bola (centro do campo)
+            r:20, // raio da bola (desenho)
+            speed: 5, // velocidade inicial da bola
+            directx : 1, // incrementador largura(width)
+            directy: 1, // incrementador altura(heigth)
+
+            _calcposition: function(){
+                // verifica se a bola esta passando a lateral direita do campo
+                if (this.x > fild.w - this.r - rigthracket.w - gapX){/*
+                    a posição inicial da bola(width) e maior que a largura do campo? descontamos  o raio da bola, largura(desenho) da raquete e gapX(10)
+                    */
+                    // SE for, verifica se a bola esta dentro dos limites da raquete
+                    if(this.y + this.r > rigthracket.y &&
+                    this.y - this.r < rigthracket.y + rigthracket.h){
+                        // se estiver a bola e rebatida
+
+                        this._reverseX()
+
+                    }else{ // senão, incrementamos 1 ponto para o jogador humano e colocamos a bola no centro
+
+                        score._increasehuman()
+                        this._pointUp()
+
+                    }
+                }
+                  //verifica se a bola esta passando a lateral esquerda
+                if(this.x < this.r + leftracket.w + gapX){
+                    // SE estiver, verifica se a bola esta dentro dos limites da raquete
+                    if(this.y + this.r > leftracket.y &&
+                    this.y - this.r < leftracket.y + leftracket.h){
+                        // se estiver a bola e rebatida
+                        this._reverseX()
+
+                    } else { // SENAO incrementamos o placar para o computador e colocamos a bola de volta no meio do campo
+                        score._increasecomputer()
+                        this._pointUp()
+                    }
+
+                }
+
+                //verifica se a bola esta passando da parte inferior e superior da tela
+                if((this.y - this.r < 0  && this.directy < 0) ||
+                (this.y > fild.h - this.r && this.directy > 0)
+            ){ // caso sim rebate a bola
+                this._reverseY()
+            }
+            },
+
+            _reverseY:function(){  // função para reverter a direção(Heigth) da bola
+
+                this.directy *= -1
+
+            },
+
+            _reverseX:function(){ // função para reverter a direção(weidth) da bola
+
+               this.directx *= -1
+
+            },
+
+            _speedUP: function(){ //função para aumentar a velocidade da bola
+                this.speed += 3
+            },
+
+            _pointUp: function(){ /*
+                função para reposicionar a bola no centro do campo após ponto e aumentar velocidade da bola
+                e da raquete da máquina
+
+                */
+
+                this._speedUP()
+                rigthracket._speedUp()
+
+                this.x = fild.w / 2
+                this.y = fild.h /2
+            },
+
+            _move: function(){ // função para mover e dar velocidade a bola
+                this.x += this.directx * this.speed
+                this.y += this.directy * this.speed
+            },
+            draw: function(){ // a função draw vai ser a responsável, sempre, por mostar tudo na tela
+                canvasCtx.fillStyle = "#ffffff"
+                canvasCtx.beginPath()
+                canvasCtx.arc(this.x,this.y,this.r,0,2*Math.PI,false)
+                canvasCtx.fill()
+
+                this._calcposition() // por isso devemos sempre lembrar de chamar as outras funções dentro do draw
+                this._move()
+
+            }
+        }
+
+       function setup (){
+        //definindo o espaço de tela onde o jogo sera desenhado
+          canvasEl.width = canvasCtx.width = window.innerWidth
+          canvasEl.height = canvasCtx.height = window.innerHeight
+
+       }
+
+       function draw(){ // a função que efetivamente irá desenhar todos objetos na tela
+         fild.draw()// selecionando a cor e desenhando o campo
+         line.draw()// desenho da linha do campo
+         leftracket.draw()// desenho da raquete esquerda
+         rigthracket.draw()// desenho da raquete direita
+         score.draw()// desenho do placar, antes da bolinha para o numero ficar por baixo
+         ball.draw()// desenho da bolinha
+
+       }
+
+       window.AnimateFrame = (function(){ // codigo para suavizar a animação /////
+        return (
+            window.requestAnimationFrame ||
+            window.webkitRequestAnimationFrame ||
+            window.mozRequestAnimationFrame ||
+            window.oRequestAnimationFrame ||
+            window.msRequestAnimationFrame ||
+            function(callback){
+                return window.setTimeout(callback,1000 / 60)
+            }
+        )
+       })()
+       ///////
+
+       function main(){ // criei uma função principal
+        AnimateFrame(main) // passei essa função como parametro para dentro do animateFrame(responsável por suavisar a animação)
+        draw() // chamei a função draw(desenho) dentro de main
+       }
+       // no final chamei o setup e o main
+       setup()
+       main()
+
+       canvasEl.addEventListener("mousemove",function(e){ //API responsável por capturar o movimento do mouse
+        mouse.x = e.pageX
+        mouse.y = e.pageY
+       })
+
+    </script>
+</body>
+</html>
